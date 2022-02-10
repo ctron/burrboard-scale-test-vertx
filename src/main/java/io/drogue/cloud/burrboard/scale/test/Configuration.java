@@ -5,6 +5,8 @@ import java.util.function.Function;
 
 public class Configuration {
 
+    private final int numberOfDevices;
+
     private String host;
     private int port;
     private boolean tls;
@@ -13,9 +15,9 @@ public class Configuration {
     private String application;
     private String gatewayDevice;
     private String password;
-    private int numberOfDevices;
 
     private Configuration() {
+        this.numberOfDevices = numberOfDevice();
     }
 
     public int getPort() {
@@ -59,17 +61,10 @@ public class Configuration {
         config.host = "mqtt-endpoint-drogue-dev.apps.wonderful.iot-playground.org";
         config.port = 443;
         config.tls = true;
-        config.application = "ctron-test-ditto";
+        config.application = "burrboard";
         config.gatewayDevice = System.getenv("GATEWAY");
         config.password = System.getenv("PASSWORD");
-        config.numberOfDevices = env("NUMBER_OF_DEVICES", Integer::parseInt).orElse(100);
         return config;
-    }
-
-    private static <T> Optional<T> env(String name, Function<String, T> converter) {
-        return Optional
-                .ofNullable(System.getenv(name))
-                .map(converter);
     }
 
     public static Configuration devboxLoadBalancer() {
@@ -83,7 +78,6 @@ public class Configuration {
         var config = new Configuration();
         config.host = "localhost";
         config.port = 1883;
-        config.numberOfDevices = 100;
         return config;
     }
 
@@ -93,7 +87,16 @@ public class Configuration {
         config.port = 8883;
         config.tls = true;
         config.insecure = true;
-        config.numberOfDevices = 100;
         return config;
+    }
+
+    private static <T> Optional<T> env(String name, Function<String, T> converter) {
+        return Optional
+                .ofNullable(System.getenv(name))
+                .map(converter);
+    }
+
+    private static int numberOfDevice() {
+        return env("NUMBER_OF_DEVICES", Integer::parseInt).orElse(50);
     }
 }
