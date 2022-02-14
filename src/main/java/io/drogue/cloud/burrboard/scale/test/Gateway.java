@@ -14,6 +14,7 @@ import io.micrometer.core.instrument.Timer;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
+import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.mqtt.MqttClient;
@@ -35,7 +36,10 @@ public class Gateway {
     private Long scheduledTick;
     private Instant lastTick;
 
-    public Gateway(final Vertx vertx, final Configuration config, final MeterRegistry registry) {
+    public Gateway(final Vertx vertx, final Configuration config, final MeterRegistry registry, int start, int amount) {
+
+        log.info("Creating gateway - start: {}, amount: {}", start, amount);
+
         this.vertx = vertx;
 
         this.period = Duration.ofMillis(1000 / 30);
@@ -69,7 +73,7 @@ public class Gateway {
         this.client.closeHandler(x -> closed(null));
         this.config = config;
         this.devices = IntStream
-                .range(0, config.getNumberOfDevices())
+                .range(start, start + amount)
                 .mapToObj(i -> new Device(String.format("simulated%05d", i)))
                 .toArray(Device[]::new);
     }
@@ -85,7 +89,8 @@ public class Gateway {
         if (this.scheduledTick != null) {
             this.vertx.cancelTimer(this.scheduledTick);
         }
-        return this.client.disconnect();
+        this.client.disconnect();
+        return Promise.promise().future();
     }
 
     private void reconnect() {

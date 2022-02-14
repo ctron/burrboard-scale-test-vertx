@@ -2,6 +2,7 @@ package io.drogue.cloud.burrboard.scale.test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -10,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.CompositeFuture;
+import io.vertx.core.Future;
 import io.vertx.core.Promise;
 
 public class Simulator extends AbstractVerticle {
@@ -17,8 +20,9 @@ public class Simulator extends AbstractVerticle {
     private static final Logger log = LoggerFactory.getLogger(Simulator.class);
 
     private final MeterRegistry registry;
+    private final Configuration config;
 
-    private Gateway gateway;
+    private Gateway[] gateways;
     private Long dumper;
     private Instant lastNow;
     private double lastCounter;
@@ -26,16 +30,24 @@ public class Simulator extends AbstractVerticle {
 
     public Simulator() {
         this.registry = new SimpleMeterRegistry();
+        this.config = Configuration.devboxLoadBalancer();
     }
 
     @Override
     public void start(Promise<Void> startPromise) {
-
         this.dumper = this.vertx.setPeriodic(1000, x -> this.dumpStats());
 
-        this.gateway = new Gateway(getVertx(), Configuration.devboxLoadBalancer(), this.registry);
-        this.gateway
-                .start()
+        @SuppressWarnings("rawtypes")
+        var futures = new ArrayList<Future>(this.config.getNumberOfGateways());
+        var amount = this.config.getDevicesPerGateway();
+
+        this.gateways = new Gateway[this.config.getNumberOfGateways()];
+        for (int i = 0; i < this.config.getNumberOfGateways(); i++) {
+            this.gateways[i] = new Gateway(getVertx(), this.config, this.registry, i * amount, amount);
+            futures.add(this.gateways[i].start());
+        }
+
+        CompositeFuture.all(futures)
                 .<Void>mapEmpty()
                 .onComplete(startPromise);
     }
@@ -46,8 +58,14 @@ public class Simulator extends AbstractVerticle {
             this.vertx.cancelTimer(this.dumper);
             this.dumper = null;
         }
-        if (this.gateway != null) {
-            this.gateway.stop()
+
+        if (this.gateways != null) {
+            @SuppressWarnings("rawtypes")
+            var futures = new ArrayList<Future>(this.config.getNumberOfGateways());
+            for (var gateway : this.gateways) {
+                futures.add(gateway.stop());
+            }
+            CompositeFuture.all(futures)
                     .<Void>mapEmpty()
                     .onComplete(stopPromise);
         } else {

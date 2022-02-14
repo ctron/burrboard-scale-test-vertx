@@ -5,7 +5,8 @@ import java.util.function.Function;
 
 public class Configuration {
 
-    private final int numberOfDevices;
+    private final int numberOfGateways;
+    private final int devicesPerGateway;
 
     private String host;
     private int port;
@@ -17,7 +18,8 @@ public class Configuration {
     private String password;
 
     private Configuration() {
-        this.numberOfDevices = numberOfDevice();
+        this.numberOfGateways = numberOfGateways();
+        this.devicesPerGateway = devicesPerGateway();
     }
 
     public int getPort() {
@@ -52,8 +54,12 @@ public class Configuration {
         return this.password;
     }
 
-    public int getNumberOfDevices() {
-        return this.numberOfDevices;
+    public int getNumberOfGateways() {
+        return this.numberOfGateways;
+    }
+
+    public int getDevicesPerGateway() {
+        return this.devicesPerGateway;
     }
 
     public static Configuration devbox() {
@@ -96,7 +102,11 @@ public class Configuration {
                 .map(converter);
     }
 
-    private static int numberOfDevice() {
-        return env("NUMBER_OF_DEVICES", Integer::parseInt).orElse(50);
+    private static int numberOfGateways() {
+        return env("NUMBER_OF_GATEWAYS", Integer::parseInt).orElse(1);
+    }
+
+    private static int devicesPerGateway() {
+        return env("DEVICES_PER_GATEWAY", Integer::parseInt).orElse(50);
     }
 }
